@@ -96,3 +96,4 @@ crashlytics.properties
 crashlytics-build.properties
 /app/release/output.json
 /.idea/codeStyles/Project.xml
+!/ResumeApp.apk

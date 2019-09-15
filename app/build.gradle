@@ -13,6 +13,16 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+
+    signingConfigs {
+        release {
+            storeFile file(KEYSTORE_PATH)
+            storePassword KEYSTORE_PASSWORD
+            keyAlias KEYSTORE_RELEASE_ALIAS
+            keyPassword KEYSTORE_RELEASE_PASSWORD
+        }
+    }
+
     buildTypes {
         def apiUrl = "\"https://gist.githubusercontent.com/viktordolgalyov/92a429ac7da39093d71e6fdcf46e67b5/raw/f87e9e51d3ce68728466da7d280cf9021aa1f64e/\""
 
@@ -22,6 +32,7 @@ android {
         release {
             buildConfigField "String", "API_URL", apiUrl
 
+            signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
