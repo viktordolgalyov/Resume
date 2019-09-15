@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Resume</string>
+    <string name="label_till_now">till now</string>
+    <string name="label_from_to">%1$s - %2$s</string>
+</resources>
