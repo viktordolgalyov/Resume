@@ -12,13 +12,11 @@ sealed class ResumeAction : UIAction {
     object EmailClick : ResumeAction()
 }
 
-sealed class ResumeEvent : UIEvent {
-
-}
-
 sealed class ResumeChange : UIStateChange {
     data class UserChanged(val user: User) : ResumeChange()
     data class PositionsChanged(val positions: List<Position>) : ResumeChange()
     data class EducationChanged(val education: List<EducationRecord>) : ResumeChange()
     data class SkillsChanged(val skills: List<Skill>) : ResumeChange()
 }
+
+sealed class ResumeEvent : UIEvent

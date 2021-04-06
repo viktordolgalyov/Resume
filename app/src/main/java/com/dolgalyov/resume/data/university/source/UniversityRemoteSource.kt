@@ -6,27 +6,23 @@ import com.dolgalyov.resume.data.address.Address
 import com.dolgalyov.resume.data.university.api.RawUniversity
 import com.dolgalyov.resume.data.university.api.UniversityApi
 import com.dolgalyov.resume.data.university.model.UniversityDto
-import io.reactivex.Single
 
-class UniversityRemoteSource(private val api: UniversityApi) :
-    RemoteDataSource<String, UniversityDto> {
+class UniversityRemoteSource(
+    private val api: UniversityApi
+) : RemoteDataSource<String, UniversityDto> {
 
-    override fun getById(id: String): Single<UniversityDto> {
-        return api.getUniversities().map { response ->
-            val raw = response.firstOrNull { it.id == id }
-            raw?.run { convertToDto(this) } ?: throw ItemNotFoundException(
-                id
-            )
-        }
+    override suspend fun getById(id: String): UniversityDto {
+        val universities = api.getUniversities()
+        val university = universities.firstOrNull { it.id == id }
+        return university?.run(::convertToDto) ?: throw ItemNotFoundException(id)
     }
 
-    private fun convertToDto(raw: RawUniversity) =
-        UniversityDto(
-            id = raw.id,
-            name = raw.name,
-            address = Address(
-                country = raw.address.country.orEmpty(),
-                city = raw.address.city.orEmpty()
-            )
+    private fun convertToDto(raw: RawUniversity) = UniversityDto(
+        id = raw.id,
+        name = raw.name,
+        address = Address(
+            country = raw.address.country.orEmpty(),
+            city = raw.address.city.orEmpty()
         )
+    )
 }

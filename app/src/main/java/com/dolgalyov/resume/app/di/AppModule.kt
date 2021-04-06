@@ -3,7 +3,7 @@ package com.dolgalyov.resume.app.di
 import com.dolgalyov.resume.BuildConfig
 import com.dolgalyov.resume.app.ResumeApp
 import com.dolgalyov.resume.common.log.TimberRemoteTree
-import com.dolgalyov.resume.common.rx.RxWorkers
+import com.dolgalyov.resume.common.util.Workers
 import com.dolgalyov.resume.common.util.ResourceProvider
 import com.dolgalyov.resume.data.company.CompanyDataModule
 import com.dolgalyov.resume.data.education.EducationDataModule
@@ -14,13 +14,11 @@ import com.dolgalyov.resume.data.user.UserDataModule
 import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.logging.HttpLoggingInterceptor.Level
 import retrofit2.Retrofit
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import timber.log.Timber
 import javax.inject.Singleton
@@ -42,15 +40,14 @@ class AppModule {
     fun retrofitBuilder(): Retrofit = Retrofit.Builder()
         .client(httpClient())
         .addConverterFactory(GsonConverterFactory.create(GsonBuilder().create()))
-        .addCallAdapterFactory(RxJava2CallAdapterFactory.createWithScheduler(Schedulers.io()))
         .baseUrl(BuildConfig.API_URL)
         .build()
 
     @Provides
     @Singleton
-    fun workers() = RxWorkers(
-        subscribeWorker = Schedulers.io(),
-        observeWorker = AndroidSchedulers.mainThread()
+    fun workers() = Workers(
+        subscribeWorker = Dispatchers.IO,
+        observeWorker = Dispatchers.Main
     )
 
     @Provides

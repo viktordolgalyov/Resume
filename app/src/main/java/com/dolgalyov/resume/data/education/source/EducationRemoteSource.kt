@@ -6,27 +6,23 @@ import com.dolgalyov.resume.common.util.toDateOrNull
 import com.dolgalyov.resume.data.education.api.EducationApi
 import com.dolgalyov.resume.data.education.api.RawEducationRecord
 import com.dolgalyov.resume.data.education.model.EducationRecordDto
-import io.reactivex.Single
 import java.util.*
 
-class EducationRemoteSource(private val api: EducationApi) :
-    RemoteDataSource<String, EducationRecordDto> {
+class EducationRemoteSource(
+    private val api: EducationApi
+) : RemoteDataSource<String, EducationRecordDto> {
 
-    override fun getById(id: String): Single<EducationRecordDto> {
-        return api.getEducationRecords().map { response ->
-            val raw = response.firstOrNull { it.id == id }
-            raw?.run { convertToDto(this) } ?: throw  ItemNotFoundException(
-                id
-            )
-        }
+    override suspend fun getById(id: String): EducationRecordDto {
+        val records = api.getEducationRecords()
+        val record = records.firstOrNull { it.id == id }
+        return record?.run(::convertToDto) ?: throw  ItemNotFoundException(id)
     }
 
-    private fun convertToDto(raw: RawEducationRecord) =
-        EducationRecordDto(
-            id = raw.id,
-            universityId = raw.universityId,
-            from = raw.fromDate.toDateOrNull() ?: Date(),
-            to = raw.toDate.toDateOrNull() ?: Date(),
-            degree = raw.degree
-        )
+    private fun convertToDto(raw: RawEducationRecord) = EducationRecordDto(
+        id = raw.id,
+        universityId = raw.universityId,
+        from = raw.fromDate.toDateOrNull() ?: Date(),
+        to = raw.toDate.toDateOrNull() ?: Date(),
+        degree = raw.degree
+    )
 }

@@ -7,9 +7,7 @@ import com.dolgalyov.resume.screen.container.router.MainRouter
 class MainViewModelFactory(private val router: MainRouter) : ViewModelProvider.Factory {
 
     @Suppress("UNCHECKED_CAST")
-    override fun <T : ViewModel?> create(modelClass: Class<T>): T {
-        return MainViewModel(
-            router = router
-        ) as T
-    }
+    override fun <T : ViewModel?> create(modelClass: Class<T>): T = MainViewModel(
+        router = router
+    ) as T
 }

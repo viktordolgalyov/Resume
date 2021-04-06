@@ -3,33 +3,28 @@ package com.dolgalyov.resume.common.arch.presentation
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.dolgalyov.resume.common.arch.SingleLiveEvent
-import com.dolgalyov.resume.common.rx.RxWorkers
-import com.dolgalyov.resume.common.rx.composeWith
-import com.dolgalyov.resume.common.rx.plusAssign
-import io.reactivex.Observable
-import io.reactivex.disposables.CompositeDisposable
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.PublishSubject
+import com.dolgalyov.resume.common.util.Workers
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.consumeEach
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.util.concurrent.Executors
-import java.util.concurrent.TimeUnit
 
 private const val TAG = "REDUX"
-private const val REDUCER_THREAD_NAME = "ReduxReducerThread"
 
 abstract class ReduxViewModel<A : UIAction, C : UIStateChange, S : UIState, M : UIModel>(
-    protected val workers: RxWorkers,
+    protected val workers: Workers,
     private val reducer: Reducer<S, C>,
     private val stateToModelMapper: StateToModelMapper<S, M>
 ) : ViewModel() {
     private val modelName = javaClass.simpleName
 
-    protected val actions = PublishSubject.create<A>()
-    protected val disposables = CompositeDisposable()
+    private val changes = Channel<C>(Channel.RENDEZVOUS)
+    private val actions = Channel<A>(Channel.RENDEZVOUS)
     protected abstract var state: S
     protected abstract val errorHandler: ErrorHandler
-
     private val model = object : MutableLiveData<M>() {
         private var hasObserverBeenAttached = false
 
@@ -50,8 +45,7 @@ abstract class ReduxViewModel<A : UIAction, C : UIStateChange, S : UIState, M : 
             onObserverInactive()
         }
     }
-
-    protected val event = object : SingleLiveEvent<UIEvent>() {
+    private val event = object : SingleLiveEvent<UIEvent>() {
 
         override fun setValue(t: UIEvent?) {
             t?.let {
@@ -76,6 +70,14 @@ abstract class ReduxViewModel<A : UIAction, C : UIStateChange, S : UIState, M : 
 
     init {
         Timber.tag(TAG).d("$modelName: viewModel created")
+        viewModelScope.launch(workers.subscribeWorker) {
+            actions.consumeEach {
+                viewModelScope.launch {
+                    val result = kotlin.runCatching { processAction(it) }
+                    result.onFailure(::onError)
+                }
+            }
+        }
     }
 
     /**
@@ -83,49 +85,77 @@ abstract class ReduxViewModel<A : UIAction, C : UIStateChange, S : UIState, M : 
      */
     fun dispatch(action: A) {
         Timber.tag(TAG).d("$modelName: Received action: ${action.log()}")
-        actions.onNext(action)
+        viewModelScope.launch(workers.subscribeWorker) { actions.send(action) }
+    }
+
+    fun sendChange(change: C) {
+        viewModelScope.launch(workers.subscribeWorker) { changes.send(change) }
     }
 
     /**
-     * Provide Observable which emits [UIStateChange].
+     * Provide Flow which emits [UIStateChange].
      * This change will be converted to new [UIState] with [reducer]
      * */
-    protected abstract fun provideChangesObservable(): Observable<C>
+    protected abstract fun processAction(action: A)
+
+    protected abstract suspend fun provideChangesObservable(): Flow<C>
 
     protected open fun onObserverActive(firstTime: Boolean) {}
 
     protected open fun onObserverInactive() {}
 
-    private fun onError(error: Throwable) {
+    protected fun onError(error: Throwable) {
         Timber.e(error)
-        workers.observeWorker.scheduleDirect { errorHandler(error) }
+        viewModelScope.launch(workers.observeWorker) { errorHandler(error) }
     }
 
     override fun onCleared() {
         Timber.tag(TAG).d("$modelName: viewModel destroyed")
-        disposables.clear()
     }
 
     private fun bindChanges() {
-        val reducerScheduler = Schedulers.from(
-            Executors.newSingleThreadExecutor { r -> Thread(r,
-                REDUCER_THREAD_NAME
-            ) })
+        viewModelScope.launch(workers.subscribeWorker) {
+            merge(
+                provideChangesObservable().catch { e -> onError(e) },
+                changes.receiveAsFlow().catch { e -> onError(e) }
+            )
+                .distinctUntilChanged()
+                .flatMapConcat { change ->
+                    if (change.isLoggable()) {
+                        Timber.tag(modelName).d("change received: ${change.log()}")
+                    }
+                    flow {
+                        emit(reducer.reduce(state, change).also { this@ReduxViewModel.state = it })
+                    }
+                }
+                .distinctUntilChanged()
+                .onStart { emit(state) }
+                .map { stateToModelMapper.mapStateToModel(it) }
+                .distinctUntilChanged()
+                .catch { e -> onError(e) }
+                .collectLatest {
+                    if (it.isLoggable()) {
+                        Timber.tag(modelName).i("Model updated: ${it.log()}")
+                    }
+                    viewModelScope.launch { model.value = it }
+                }
+        }
+    }
 
-        disposables += provideChangesObservable()
-            .observeOn(reducerScheduler)
-            .map { change ->
-                reducer.reduce(state, change)
-                    .also { this.state = it }
-            }
-            .startWith(state)
-            .distinctUntilChanged()
-            .map(stateToModelMapper::mapStateToModel)
-            .distinctUntilChanged()
-            .throttleLast(50, TimeUnit.MILLISECONDS)
-            .doOnNext { Timber.tag(TAG).d("$modelName: model updated: ${it.log()}") }
-            .composeWith(workers)
-            .doOnTerminate { Timber.tag(TAG).e("Changes observable terminated!") }
-            .subscribe(model::setValue, ::onError)
+    protected suspend inline fun <T> execute(
+        crossinline action: suspend () -> T,
+        crossinline onStart: () -> Unit = {},
+        crossinline onSuccess: (T) -> Unit,
+        crossinline onComplete: () -> Unit = {},
+        noinline onErrorOccurred: ((Throwable) -> Unit)? = null
+    ) {
+        onStart()
+        try {
+            val result = action()
+            onSuccess(result)
+        } catch (e: Exception) {
+            onErrorOccurred?.invoke(e) ?: onError(e)
+        }
+        onComplete()
     }
 }

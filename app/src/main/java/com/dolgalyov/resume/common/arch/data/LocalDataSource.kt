@@ -1,18 +1,17 @@
 package com.dolgalyov.resume.common.arch.data
 
-import com.dolgalyov.resume.common.rx.toMaybe
-import io.reactivex.Completable
-import io.reactivex.Maybe
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 class LocalDataSource<Key, Type> {
     private val cache = ConcurrentHashMap<Key, Type>()
 
-    fun getItem(id: Key): Maybe<Type> {
-        return cache[id]?.run { toMaybe() } ?: Maybe.empty()
+    suspend fun getItem(id: Key): Type? = withContext(Dispatchers.IO) {
+        return@withContext cache[id]
     }
 
-    fun putItem(key: Key, item: Type): Completable {
-        return Completable.fromAction { cache[key] = item }
+    suspend fun putItem(key: Key, item: Type) = withContext(Dispatchers.IO) {
+        cache[key] = item
     }
 }

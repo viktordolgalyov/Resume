@@ -3,7 +3,8 @@ package com.dolgalyov.resume.screen.container
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.ViewModelProviders
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.get
 import com.dolgalyov.resume.R
 import com.dolgalyov.resume.common.android.setWindowTransparency
 import com.dolgalyov.resume.common.android.updateMargin
@@ -26,8 +27,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main), ResumeComponent.
         super.onCreate(savedInstanceState)
         component.inject(this)
         setWindowTransparent()
-
-        ViewModelProviders.of(this, viewModelFactory).get(MainViewModel::class.java)
+        ViewModelProvider(this, viewModelFactory).get<MainViewModel>()
     }
 
     override fun onStart() {
@@ -45,10 +45,8 @@ class MainActivity : AppCompatActivity(R.layout.activity_main), ResumeComponent.
     }
 
     private fun setWindowTransparent() {
-        setWindowTransparency { statusBarSize, navigationBarSize ->
-            fragmentContainer.updateMargin(
-                top = statusBarSize
-            )
+        setWindowTransparency { statusBarSize, _ ->
+            fragmentContainer.updateMargin(top = statusBarSize)
         }
     }
 }

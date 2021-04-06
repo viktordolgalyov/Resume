@@ -4,13 +4,12 @@ import com.dolgalyov.resume.data.user.UserRepository
 import com.dolgalyov.resume.data.user.model.UserDto
 import com.dolgalyov.resume.domain.model.Email
 import com.dolgalyov.resume.domain.model.User
-import io.reactivex.Single
 
 class UsersService(private val repository: UserRepository) {
 
-    fun getUser(id: String): Single<User> {
-        return repository.getById(id)
-            .map { convertUser(it) }
+    suspend fun getUser(id: String): User {
+        val user = repository.getById(id)
+        return convertUser(user)
     }
 
     private fun convertUser(dto: UserDto) = User(

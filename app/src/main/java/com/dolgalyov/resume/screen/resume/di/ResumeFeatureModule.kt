@@ -1,7 +1,7 @@
 package com.dolgalyov.resume.screen.resume.di
 
 import com.dolgalyov.resume.common.di.ScreenScope
-import com.dolgalyov.resume.common.rx.RxWorkers
+import com.dolgalyov.resume.common.util.Workers
 import com.dolgalyov.resume.common.util.ResourceProvider
 import com.dolgalyov.resume.domain.service.EducationService
 import com.dolgalyov.resume.domain.service.PositionService
@@ -24,7 +24,7 @@ class ResumeFeatureModule {
         skillService: SkillService,
         inputParams: ResumeInputParams,
         resourceProvider: ResourceProvider,
-        workers: RxWorkers
+        workers: Workers
     ) = ResumeViewModelFactory(
         educationService = educationService,
         usersService = usersService,

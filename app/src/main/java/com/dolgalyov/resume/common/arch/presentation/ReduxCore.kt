@@ -10,6 +10,8 @@ interface UIModel : ReduxLoggable
 
 interface UIEvent : ReduxLoggable
 
+interface UIRouter
+
 interface Reducer<S : UIState, C : UIStateChange> {
     fun reduce(state: S, change: C): S
 }

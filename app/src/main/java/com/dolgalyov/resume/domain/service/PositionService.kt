@@ -7,8 +7,6 @@ import com.dolgalyov.resume.data.position.model.PositionDto
 import com.dolgalyov.resume.data.user.UserRepository
 import com.dolgalyov.resume.domain.model.Company
 import com.dolgalyov.resume.domain.model.Position
-import io.reactivex.Observable
-import io.reactivex.Single
 
 class PositionService(
     private val usersRepository: UserRepository,
@@ -16,33 +14,28 @@ class PositionService(
     private val positionRepository: PositionRepository
 ) {
 
-    fun getPosition(id: String): Single<Position> {
-        return positionRepository.getById(id).flatMap { positionDto ->
-            companyRepository.getById(positionDto.companyId).map { companyDto ->
-                val company = convertCompany(companyDto)
-                convertPosition(company, positionDto)
-            }
-        }
+    suspend fun getPosition(id: String): Position {
+        val position = positionRepository.getById(id)
+        val company = companyRepository.getById(position.companyId).run(::convertCompany)
+        return convertPosition(company, position)
     }
 
-    fun getUserPositions(userId: String): Single<List<Position>> {
-        return usersRepository.getById(userId).flatMap { user ->
-            Observable
-                .fromIterable(user.positions)
-                .flatMapSingle { positionId -> getPosition(positionId) }
-                .toList()
-        }
+    suspend fun getUserPositions(userId: String): List<Position> {
+        return usersRepository.getById(userId).positions
+            .map { positionId -> getPosition(positionId) }
     }
 
-    private fun convertPosition(company: Company, positionDto: PositionDto) =
-        Position(
-            id = positionDto.id,
-            name = positionDto.name,
-            company = company,
-            description = positionDto.description,
-            from = positionDto.from,
-            to = positionDto.to
-        )
+    private fun convertPosition(
+        company: Company,
+        positionDto: PositionDto
+    ) = Position(
+        id = positionDto.id,
+        name = positionDto.name,
+        company = company,
+        description = positionDto.description,
+        from = positionDto.from,
+        to = positionDto.to
+    )
 
     private fun convertCompany(companyDto: CompanyDto) = Company(
         id = companyDto.id,

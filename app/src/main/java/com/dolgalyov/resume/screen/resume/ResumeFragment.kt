@@ -5,8 +5,8 @@ import android.view.LayoutInflater
 import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProviders
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -45,9 +45,7 @@ class ResumeFragment : Fragment(R.layout.fragment_resume) {
             input = ResumeInputParams(userId)
         )
     }
-    private val viewModel by lazy {
-        ViewModelProviders.of(this, viewModelFactory).get(ResumeViewModel::class.java)
-    }
+    private val viewModel by viewModels<ResumeViewModel> { viewModelFactory }
 
     @Inject lateinit var viewModelFactory: ResumeViewModelFactory
 
@@ -59,8 +57,8 @@ class ResumeFragment : Fragment(R.layout.fragment_resume) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initViews()
-        viewModel.observableModel.observe(viewLifecycleOwner, Observer { renderModel(it) })
-        viewModel.observableEvent.observe(viewLifecycleOwner, Observer { renderEvent(it) })
+        viewModel.observableModel.observe(viewLifecycleOwner, Observer(::renderModel))
+        viewModel.observableEvent.observe(viewLifecycleOwner, Observer(::renderEvent))
     }
 
     private fun renderModel(model: ResumePresentationModel) {

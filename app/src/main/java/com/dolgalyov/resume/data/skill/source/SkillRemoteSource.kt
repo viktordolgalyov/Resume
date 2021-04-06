@@ -5,18 +5,15 @@ import com.dolgalyov.resume.common.exception.ItemNotFoundException
 import com.dolgalyov.resume.data.skill.api.RawSkill
 import com.dolgalyov.resume.data.skill.api.SkillApi
 import com.dolgalyov.resume.data.skill.model.SkillDto
-import io.reactivex.Single
 
-class SkillRemoteSource(private val api: SkillApi) :
-    RemoteDataSource<String, SkillDto> {
+class SkillRemoteSource(
+    private val api: SkillApi
+) : RemoteDataSource<String, SkillDto> {
 
-    override fun getById(id: String): Single<SkillDto> {
-        return api.getSkills().map { response ->
-            val raw = response.firstOrNull { it.id == id }
-            raw?.run { convertToDto(this) } ?: throw ItemNotFoundException(
-                id
-            )
-        }
+    override suspend fun getById(id: String): SkillDto {
+        val skills = api.getSkills()
+        val skill = skills.firstOrNull { it.id == id }
+        return skill?.run(::convertToDto) ?: throw ItemNotFoundException(id)
     }
 
     private fun convertToDto(raw: RawSkill) = SkillDto(
